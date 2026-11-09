@@ -9,8 +9,6 @@ const EQUIP = [["barbell","Barbell"],["dumbbell","Dumbbell"],["machine","Machine
 const EN = Object.fromEntries(EQUIP);
 const MODES = [["wr","Weight × reps","Bench press, curls, rows"],["r","Reps only","Pull-ups, push-ups"],["wbw","Weighted bodyweight","Weighted dips, weighted pull-ups"],["ast","Assisted","Assisted pull-up machine"],["td","Time and distance","Running, rowing, cycling"]];
 const MODEN = Object.fromEntries(MODES.map(m => [m[0], m[1]]));
-const PLATE_SIZES = [25, 20, 15, 10, 5, 2.5, 2, 1.25, 1, 0.5];
-const PLATE_COL = {25:"#d9534f",20:"#4f7fd9",15:"#e0b43c",10:"#4caf6e",5:"#e5e7eb",2.5:"#d9534f",2:"#4f7fd9",1.25:"#a1a1aa",1:"#4caf6e",0.5:"#e5e7eb"};
 const DEF = {v:2,u:"kg",ex:[],days:[],ses:[],act:null,bw:[],set:{awake:true,vib:true,wuStats:false,rpe:false,rest:false,restSec:90,defSets:3,remind:true},lb:0,lz:0};
 const DAY = 864e5;
 
@@ -79,63 +77,6 @@ const tstr = t => new Date(t).toLocaleTimeString(undefined, {hour:"2-digit", min
 function clockStr(ms){ const s = Math.max(0, Math.floor(ms / 1000)), p = n => String(n).padStart(2, "0"); return (s >= 3600 ? Math.floor(s / 3600) + ":" + p(Math.floor(s / 60) % 60) : Math.floor(s / 60)) + ":" + p(s % 60); }
 function vib(p){ try { if (S.set.vib && navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
 
-/* ---------- weights setups ---------- */
-function defSetup(e){
-  if (e.eq === "barbell") return {t:"plates", bar:20, pl:{25:2,20:1,15:1,10:2,5:2,2.5:2,1.25:2}};
-  if (e.eq === "dumbbell"){ const l = []; for (let v = 1; v <= 10; v++) l.push(v); for (let v = 12; v <= 50; v += 2) l.push(v); return {t:"db", list:l}; }
-  if (e.eq === "machine" || e.eq === "cable"){ const l = []; for (let v = 5; v <= 100; v += 5) l.push(v); return {t:"stack", list:l, add:[]}; }
-  return {t:"step", s:e.step || 2.5};
-}
-const setupOf = e => e.ws || defSetup(e);
-const AKC = new Map();
-function plateTable(s){
-  const key = "p" + JSON.stringify(s);
-  if (AKC.has(key)) return AKC.get(key);
-  let reach = new Map([[0, []]]);
-  const sizes = Object.keys(s.pl).map(Number).filter(p => s.pl[p] > 0).sort((a, b) => b - a);
-  for (const p of sizes){
-    const c = s.pl[p], pc = Math.round(p * 100), next = new Map(reach);
-    for (const [sum, combo] of reach){
-      for (let k = 1; k <= c; k++){
-        const ns = sum + pc * k; if (ns > 40000) break;
-        if (!next.has(ns) || next.get(ns).length > combo.length + k) next.set(ns, combo.concat(Array(k).fill(p)));
-      }
-    }
-    reach = next;
-  }
-  AKC.set(key, reach); return reach;
-}
-function achievable(e){
-  const s = setupOf(e), key = JSON.stringify(s);
-  if (AKC.has(key)) return AKC.get(key);
-  let out = [];
-  if (s.t === "plates"){ for (const sum of plateTable(s).keys()) out.push(Math.round((s.bar * 100 + 2 * sum)) / 100); }
-  else if (s.t === "stack"){
-    let adds = [0]; for (const a of (s.add || [])) adds = adds.concat(adds.map(x => x + a));
-    for (const b of s.list) for (const a of adds) out.push(Math.round((b + a) * 100) / 100);
-    if (e.mode === "wbw" || e.mode === "ast") out.push(0);
-  }
-  else if (s.t === "db"){ out = s.list.slice(); if (e.mode === "wbw") out.push(0); }
-  else { const st = s.s > 0 ? s.s : 2.5; for (let v = 0; v <= 500 + 1e-9; v += st) out.push(Math.round(v * 100) / 100); }
-  out = [...new Set(out)].sort((a, b) => a - b);
-  AKC.set(key, out); return out;
-}
-function nextUp(e, w){ const l = achievable(e); for (const a of l) if (a > w + 1e-6) return a; return w; }
-function nextDown(e, w){ const l = achievable(e); for (let i = l.length - 1; i >= 0; i--) if (l[i] < w - 1e-6) return l[i]; return w; }
-function plateMath(e, w){
-  const s = setupOf(e); if (s.t !== "plates" || w == null) return null;
-  const side = Math.round((w - s.bar) * 100 / 2); if (side < 0) return null;
-  const combo = plateTable(s).get(side); if (!combo) return null;
-  return {bar:s.bar, side:combo};
-}
-function setupSummary(e){
-  const s = setupOf(e), l = achievable(e);
-  if (s.t === "plates"){ const n = Object.values(s.pl).filter(c => c > 0).length; return "Plates: " + wv(s.bar) + " " + S.u + " bar, " + n + " plate size" + (n === 1 ? "" : "s"); }
-  if (s.t === "stack") return "Weight stack: " + wv(l[0] ?? 0) + " to " + fw(l[l.length - 1] ?? 0) + ((s.add || []).length ? ", with add-ons" : "");
-  if (s.t === "db") return "Dumbbells: " + s.list.length + " pairs, " + wv(s.list[0] ?? 0) + " to " + fw(s.list[s.list.length - 1] ?? 0);
-  return "Fixed steps of " + fw(s.s);
-}
-
 /* ---------- history lookups ---------- */
 function lastRec(id, skipSid){
   for (const s of S.ses){ if (s.id === skipSid) continue; const r = s.ex.find(x => x.e === id); if (r && r.sets.length) return {s, r}; }
@@ -149,8 +90,6 @@ function rowsFor(id){
   return L.r.sets.map(s => {
     const o = {w:s.w, r:s.r, t:s.t, d:s.d};
     if (s.wu) o.wu = 1;
-    if (!s.wu && L.r.hit){ if (e.mode === "wr" || e.mode === "wbw") o.w = nextUp(e, s.w); else if (e.mode === "ast") o.w = nextDown(e, s.w); }
-    o.tw = o.w; o.tr = o.r;
     return o;
   });
 }
@@ -287,10 +226,41 @@ function lineChart(pts, opt = {}){
   <circle cx="${P[bi][0]}" cy="${P[bi][1]}" r="6" fill="#f2c14e" stroke="#121214" stroke-width="3"/>
   <text x="${pl}" y="${H - 6}" fill="#8b8b94" font-size="11" font-family="Inter">${dl(t0)}</text><text x="${W - pr}" y="${H - 6}" fill="#8b8b94" font-size="11" font-family="Inter" text-anchor="end">${dl(t1)}</text></svg>`;
 }
-function barbellSvg(pm){
-  if (!pm) return "";
-  const H = 110, cx = 190; let L = "", x = 132, R = "", xr = 248;
-  const h = p => 30 + Math.min(1, p / 25) * 60, w = p => p >= 15 ? 18 : p >= 5 ? 11 : 8;
-  for (const p of pm.side){ const hh = h(p), ww = w(p); L += `<rect x="${x - ww}" y="${(H - hh) / 2}" width="${ww}" height="${hh}" rx="3" fill="${PLATE_COL[p] || "#a1a1aa"}"/>`; R += `<rect x="${xr}" y="${(H - hh) / 2}" width="${ww}" height="${hh}" rx="3" fill="${PLATE_COL[p] || "#a1a1aa"}"/>`; x -= ww + 2; xr += ww + 2; }
-  return `<svg viewBox="0 0 380 ${H}" width="100%" role="img" aria-label="Plates per side: ${pm.side.join(", ")}" style="display:block"><rect x="0" y="${H / 2 - 4}" width="380" height="8" rx="4" fill="#71717a"/><rect x="132" y="${H / 2 - 11}" width="10" height="22" rx="2" fill="#a1a1aa"/><rect x="238" y="${H / 2 - 11}" width="10" height="22" rx="2" fill="#a1a1aa"/>${L}${R}<text x="${cx}" y="${H / 2 - 14}" fill="#a1a1aa" font-size="12" font-family="Inter" text-anchor="middle">${wv(pm.bar)} ${S.u} bar</text></svg>`;
+
+/* ---------- guess muscles from an exercise name ---------- */
+const GUESS = [
+  [/close[- ]?grip (bench|press)|jm press/, "triceps", ["chest","fdelts"]],
+  [/incline.*(press|bench|fly|flye)|(press|bench).*incline/, "chest", ["fdelts","triceps"]],
+  [/bench|chest press|push[- ]?ups?\b|floor press|svend/, "chest", ["triceps","fdelts"]],
+  [/\bflye?s?\b|pec ?deck|crossover|cross-over|squeeze press/, "chest", ["fdelts"]],
+  [/\bdips?\b/, "chest", ["triceps","fdelts"]],
+  [/rear ?delt|reverse (fly|flye|pec)|face ?pull/, "rdelts", ["upperback","traps"]],
+  [/upright row/, "sdelts", ["traps","fdelts"]],
+  [/lateral|side raise|\by[- ]raise/, "sdelts", ["traps"]],
+  [/front raise/, "fdelts", ["sdelts"]],
+  [/overhead press|shoulder press|military|\bohp\b|arnold|push press|landmine press/, "fdelts", ["sdelts","triceps"]],
+  [/shrug/, "traps", ["forearms"]],
+  [/pull[- ]?down|lat pull|pull[- ]?ups?\b|chin[- ]?ups?\b|straight[- ]arm|pullover/, "lats", ["biceps","upperback"]],
+  [/romanian|\brdl\b|stiff[- ]leg|good ?morning/, "hamstrings", ["glutes","lowerback"]],
+  [/deadlift|rack pull/, "glutes", ["hamstrings","lowerback","quads","traps"]],
+  [/hyperextension|back extension|superman/, "lowerback", ["glutes","hamstrings"]],
+  [/\brows?\b|\browing\b.*(cable|seated|machine|dumbbell|barbell)|t[- ]bar|pendlay|seal row/, "upperback", ["lats","biceps","rdelts"]],
+  [/leg curl|hamstring curl|nordic|glute[- ]ham/, "hamstrings", []],
+  [/leg extension|sissy/, "quads", []],
+  [/hip thrust|glute bridge|glute kickback|cable kickback|donkey kick/, "glutes", ["hamstrings"]],
+  [/abduct|clamshell|fire hydrant/, "abductors", ["glutes"]],
+  [/adduct|copenhagen/, "adductors", []],
+  [/squat|leg press|hack|lunge|step[- ]?ups?\b|split squat|pistol|belt squat|pendulum/, "quads", ["glutes","adductors"]],
+  [/calf|calves|donkey raise/, "calves", []],
+  [/skull|tricep|push[- ]?down|kickback|overhead extension|french press/, "triceps", []],
+  [/wrist|forearm|reverse curl|farmer|grip/, "forearms", []],
+  [/hammer/, "biceps", ["forearms"]],
+  [/curl/, "biceps", ["forearms"]],
+  [/oblique|side plank|russian twist|woodchop|wood chop|side bend/, "obliques", ["abs"]],
+  [/crunch|sit[- ]?ups?\b|leg raise|knee raise|plank|ab wheel|rollout|roll-out|hollow|\babs?\b|v[- ]ups?\b|dead bug|toes to bar/, "abs", ["obliques"]]
+];
+function guessMuscles(name){
+  const n = " " + String(name || "").toLowerCase() + " ";
+  for (const [re, m, m2] of GUESS) if (re.test(n)) return {m, m2:m2.slice()};
+  return null;
 }

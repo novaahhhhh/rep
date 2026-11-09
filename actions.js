@@ -69,8 +69,7 @@ function finishWorkout(upd){
   const ex = a.ex.map(r => {
     const e = X(r.e), done = r.sets.filter(s => s.done); if (!done.length || !e) return null;
     const work = r.sets.filter(s => !s.wu);
-    const hit = isW(e.mode) && work.length > 0 && work.every(s => s.done && s.tr != null && s.tw != null && (s.r || 0) >= s.tr && (e.mode === "ast" ? s.w <= s.tw + 1e-6 : s.w >= s.tw - 1e-6));
-    return {e:r.e, n:e.n, g:r.g || null, hit, sets:done.map(s => { const o = {}; for (const k of ["w","r","t","d","rpe"]) if (s[k] != null) o[k] = s[k]; if (s.wu) o.wu = 1; if (s.pr) o.pr = s.pr; return o; })};
+    return {e:r.e, n:e.n, g:r.g || null, sets:done.map(s => { const o = {}; for (const k of ["w","r","t","d","rpe"]) if (s[k] != null) o[k] = s[k]; if (s.wu) o.wu = 1; if (s.pr) o.pr = s.pr; return o; })};
   }).filter(Boolean);
   if (upd && a.day){ const d = S.days.find(x => x.id === a.day); if (d) d.items = a.ex.filter(r => X(r.e)).map(r => ({e:r.e, g:r.g || null})); }
   S.act = null; wake();
@@ -216,15 +215,12 @@ A.pdone = () => {
 /* exercises */
 function newExDraft(){ return {n:"", mode:"wr", eq:"barbell", m:"chest", m2:[], step:2.5, note:""}; }
 A.newex = () => pushPage({p:"exedit", id:null, d:newExDraft(), bar:1});
-A.exedit = el => { const e = X(el.dataset.v); if (e) pushPage({p:"exedit", id:e.id, d:{n:e.n, mode:e.mode, eq:e.eq, m:e.m, m2:(e.m2 || []).slice(), step:e.step || 2.5, note:e.note || ""}, bar:1}); };
+A.exedit = el => { const e = X(el.dataset.v); if (e) pushPage({p:"exedit", id:e.id, touched:1, d:{n:e.n, mode:e.mode, eq:e.eq, m:e.m, m2:(e.m2 || []).slice(), step:e.step || 2.5, note:e.note || ""}, bar:1}); };
 A.exdetail = el => pushPage({p:"exdetail", id:el.dataset.v});
 A.emode = el => { curPage().d.mode = el.dataset.v; render(); };
-A.eeq = el => { const d = curPage().d; d.eq = el.dataset.v; d.step = {barbell:2.5, dumbbell:2, machine:5, cable:2.5}[d.eq] || 2.5; render(); };
-A.em = el => { const d = curPage().d; d.m = el.dataset.v; d.m2 = d.m2.filter(x => x !== d.m); render(); };
-A.em2 = el => { const d = curPage().d, v = el.dataset.v, k = d.m2.indexOf(v); k < 0 ? d.m2.push(v) : d.m2.splice(k, 1); render(); };
-const STEPS = [0.25, 0.5, 1, 1.25, 2, 2.5, 5, 10];
-const stepMove = (cur, dir) => { let i = STEPS.findIndex(s => s >= cur - 1e-9); if (i < 0) i = STEPS.length - 1; return STEPS[clamp(i + dir, 0, STEPS.length - 1)]; };
-A.estep = el => { const d = curPage().d; d.step = stepMove(d.step, +el.dataset.v); render(); };
+A.eeq = el => { const d = curPage().d; d.eq = el.dataset.v; render(); };
+A.em = el => { curPage().touched = 1; curPage().auto = 0; const d = curPage().d; d.m = el.dataset.v; d.m2 = d.m2.filter(x => x !== d.m); render(); };
+A.em2 = el => { curPage().touched = 1; curPage().auto = 0; const d = curPage().d, v = el.dataset.v, k = d.m2.indexOf(v); k < 0 ? d.m2.push(v) : d.m2.splice(k, 1); render(); };
 A.photo = el => { photoTarget = el.dataset.v; $("#filePhoto").click(); };
 A.exsave = () => {
   const p = curPage(), d = p.d, n = d.n.trim();
@@ -243,21 +239,6 @@ A.exdel = () => twoTap("exdel", () => {
   const prev = ui.stack[ui.stack.length - 2];
   if (prev && prev.p === "exdetail" && prev.id === id){ ui.popN = 1; history.go(-2); } else goBack();
 });
-/* weights setup */
-A.weights = el => { const e = X(el.dataset.v); if (!e) return; const d = clone(setupOf(e)); pushPage({p:"weights", id:e.id, d, all:d.list ? d.list.slice() : null, q:d.t === "db" ? {lo:2, st:2, hi:40} : {lo:5, st:5, hi:100}, bar:1}); };
-A.wtype = el => {
-  const p = curPage(), e = X(p.id), t = el.dataset.v; if (p.d.t === t) return;
-  const eq = {plates:"barbell", stack:"machine", db:"dumbbell", step:"other"}[t];
-  p.d = defSetup(Object.assign({}, e, {eq})); if (t === "step") p.d.s = e.step || 2.5;
-  p.all = p.d.list ? p.d.list.slice() : null; p.q = t === "db" ? {lo:2, st:2, hi:40} : {lo:5, st:5, hi:100}; render();
-};
-A.wbar = el => { curPage().d.bar = +el.dataset.v; render(); };
-A.wpl = el => { const d = curPage().d, w = +el.dataset.v; d.pl[w] = clamp((d.pl[w] || 0) + (+el.dataset.d), 0, 12); render(); };
-A.wfill = () => { const p = curPage(), q = p.q; if (!(q.st > 0) || q.hi < q.lo){ toast("Check lightest, step and heaviest"); return; } const l = []; for (let v = q.lo; v <= q.hi + 1e-9 && l.length < 200; v += q.st) l.push(Math.round(v * 100) / 100); p.d.list = l; p.all = l.slice(); render(); };
-A.wtog = el => { const p = curPage(), w = +el.dataset.v, k = p.d.list.indexOf(w); k < 0 ? p.d.list.push(w) : p.d.list.splice(k, 1); p.d.list.sort((a, b) => a - b); render(); };
-A.wadd = el => { const d = curPage().d, a = +el.dataset.v; d.add = d.add || []; const k = d.add.indexOf(a); k < 0 ? d.add.push(a) : d.add.splice(k, 1); render(); };
-A.wstep = el => { const d = curPage().d; d.s = stepMove(d.s, +el.dataset.v); render(); };
-A.wsave = () => { const p = curPage(), e = X(p.id); if ((p.d.t === "stack" || p.d.t === "db") && !p.d.list.length){ toast("Turn on at least one weight"); return; } e.ws = p.d; save(true); toast("Weights setup saved"); goBack(); };
 /* progress */
 A.prog = el => { ui.prog = el.dataset.v; ui.cd = null; if (ui.tab !== "prog") goTab("prog"); else { render(); } };
 A.coll = el => { ui[el.dataset.v] = !ui[el.dataset.v]; render(); };
@@ -300,7 +281,10 @@ document.addEventListener("input", ev => {
     if (s.done && (k === "w" || k === "r")){ const pr = prFor(S.act.ex[+t.dataset.i].e, s); if (pr) s.pr = pr; else delete s.pr; }
     save(); return;
   }
-  if (t.dataset.f){ const p = curPage(); if (p && p.d) p.d[t.dataset.f] = t.value; return; }
+  if (t.dataset.f){ const p = curPage(); if (!p || !p.d) return; p.d[t.dataset.f] = t.value;
+    if (p.p === "exedit" && t.dataset.f === "n" && !p.touched){ const g = guessMuscles(t.value);
+      if (g && (g.m !== p.d.m || g.m2.join() !== p.d.m2.join())){ p.d.m = g.m; p.d.m2 = g.m2; p.auto = 1; const pos = t.selectionStart; render(); const f = $('[data-f="n"]'); if (f){ f.focus(); try { f.setSelectionRange(pos, pos); } catch (e) {} } } }
+    return; }
   if (t.dataset.wf === "bar"){ const v = parseNum(t.value); if (v != null) curPage().d.bar = fromU(v); return; }
   if (t.dataset.wq){ const v = parseNum(t.value); if (v != null) curPage().q[t.dataset.wq] = fromU(v); return; }
   if (t.id === "exq"){ ui.q = t.value; const q = ui.q.trim().toLowerCase(); const list = S.ex.filter(e => !q || (e.n + " " + (MN[e.m] || "") + " " + (EN[e.eq] || "")).toLowerCase().includes(q)).sort((a, b) => a.n.localeCompare(b.n)); $("#exlist").innerHTML = list.map(exRow).join("") || `<div class="li mu">No matches.</div>`; return; }
@@ -371,6 +355,9 @@ document.addEventListener("pointerup", dgEnd); document.addEventListener("pointe
   const q = new URLSearchParams(location.search).get("tab");
   if (q === "prog") goTab("prog"); else if (q === "work") goTab("work");
   wake(); setInterval(tickClock, 1000); tickClock();
-  const sp = $("#splash"); setTimeout(() => { sp.style.opacity = 0; setTimeout(() => sp.remove(), 400); }, 350);
+  const sp = $("#splash"), hide = () => { if (!sp.isConnected) return; sp.style.opacity = 0; setTimeout(() => sp.remove(), 400); };
+  const img = sp.querySelector("img"), shown = () => setTimeout(hide, Math.max(0, 1600 - performance.now()) + 800);
+  sp.addEventListener("click", hide);
+  if (img.complete) shown(); else { img.onload = shown; img.onerror = hide; setTimeout(hide, 5000); }
 })();
 if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));

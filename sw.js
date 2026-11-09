@@ -1,7 +1,7 @@
 // Take Tren service worker: the app works fully offline after the first visit.
-const CACHE = "taketren-v2.0.0";
+const CACHE = "taketren-v2.1.0";
 const FILES = ["./", "index.html", "core.js", "views.js", "actions.js", "body.js", "manifest.webmanifest",
-  "icons/logo.svg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable.png", "icons/apple-touch-icon.png", "icons/favicon.png",
+  "icons/logo.svg", "img/splash.jpg", "img/pr.jpg", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable.png", "icons/apple-touch-icon.png", "icons/favicon.png",
   "fonts/barlow-600.woff2", "fonts/barlow-700.woff2", "fonts/barlow-800.woff2", "fonts/inter-400.woff2", "fonts/inter-500.woff2", "fonts/inter-600.woff2", "fonts/inter-700.woff2"];
 
 self.addEventListener("install", e => {

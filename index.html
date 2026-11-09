@@ -12,6 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/favicon.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preload" href="img/splash.jpg" as="image">
 <link rel="preload" href="fonts/barlow-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/inter-400.woff2" as="font" type="font/woff2" crossorigin>
 <style>
@@ -204,12 +205,12 @@ textarea.inp{height:88px;padding:12px 14px;font-size:15px;font-weight:500;resize
 #toast{visibility:hidden;transition:transform .3s,visibility 0s .3s}#toast.on{transform:translate(-50%,0);visibility:visible;transition:transform .3s}
 #toast button{color:var(--act);font-weight:700;min-height:32px}
 #splash{position:fixed;inset:0;background:#000;display:grid;place-items:center;z-index:99;transition:opacity .35s}
-#splash img{width:104px;height:104px}
+#splash img{width:min(92vw,440px);height:auto;border-radius:18px;display:block}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<div id="splash"><img src="icons/logo.svg" alt="Take Tren"></div>
+<div id="splash" data-skip><img src="img/splash.jpg" alt="Life is short. Make it shorter. Take tren." fetchpriority="high"></div>
 <main id="app"></main>
 <button id="resume" class="hidden" data-a="tab" data-v="work"></button>
 <nav id="nav" aria-label="Main"><div class="in"></div></nav>
