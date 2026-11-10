@@ -248,8 +248,13 @@ A.calday = el => { const v = +el.dataset.v; ui.calSel = ui.calSel === v ? null :
 A.hx = el => { ui.hx = ui.hx === el.dataset.v ? null : el.dataset.v; ui.cd = null; render(); };
 A.delses = el => twoTap(el.dataset.v, () => { S.ses = S.ses.filter(s => s.id !== el.dataset.v); ui.hx = null; save(true); render(); toast("Workout deleted"); });
 A.bwstep = el => { const i = $("#bwi"), st = S.u === "kg" ? .1 : .2; i.value = nfmt(Math.round(((parseNum(i.value) || 0) + (+el.dataset.v) * st) * 10) / 10); };
-A.bwlog = () => { const v = parseNum($("#bwi").value); if (!(v > 0)){ toast("Enter your weight"); return; } const t = dayStart(Date.now()); S.bw = S.bw.filter(x => dayStart(x.d) !== t); S.bw.push({d:Date.now(), w:fromU(v)}); save(true); vib(15); toast("Logged " + nfmt(v) + " " + S.u); render(); };
+A.bwlog = () => { const v = parseNum($("#bwi").value); if (!(v > 0)){ toast("Enter your weight"); return; } const t = dayStart(Date.now()); S.bw = S.bw.filter(x => dayStart(x.d) !== t); S.bw.push({d:Date.now(), w:fromU(v)}); fillBW(); save(true); vib(15); toast("Logged " + nfmt(v) + " " + S.u); render(); };
 A.bwdel = el => { const d = +el.dataset.v, old = S.bw.find(x => x.d === d); S.bw = S.bw.filter(x => x.d !== d); save(); render(); toast("Entry deleted", () => { S.bw.push(old); save(); render(); }); };
+A.sesday = el => {
+  const s = S.ses.find(x => x.id === el.dataset.v), d = s && S.days.find(x => x.id === s.day); if (!d) return;
+  const old = d.items; d.items = s.ex.filter(r => X(r.e)).map(r => ({e:r.e, g:r.g || null}));
+  save(true); render(); toast(esc(d.n) + " updated", () => { d.items = old; save(); render(); });
+};
 /* settings */
 A.tog = el => { const k = el.dataset.v; S.set[k] = !S.set[k]; save(); if (k === "awake") wake(); if (k === "rest" && !S.set.rest && S.act){ S.act.restEnd = null; tickClock(); } render(); };
 A.unit = el => { S.u = el.dataset.v; save(); render(); };

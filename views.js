@@ -84,6 +84,7 @@ function finishedList(){
 }
 function colsFor(e){
   const m = e.mode;
+  if (usesBW(e)) return [["w", "BW " + S.u], ["r", "Reps"]];
   if (m === "wr") return [["w", S.u]]
     .concat([["r", "Reps"]]);
   if (m === "r") return [["r", "Reps"]];
@@ -124,6 +125,8 @@ function exCard(r, i){
       <button class="tick ${s.done ? (s.pr ? "gold" : "on") : ""}" data-a="tick" data-i="${i}" data-j="${j}" aria-label="${s.done ? "Set done, tap to undo" : "Mark set done"}">${s.done && s.pr ? I.trophy({s:20, w:2.2}) : I.check()}</button></div>`;
   });
   h += `<button class="btn dash sm w" data-a="addset" data-i="${i}">${I.plus()}Add set</button>`;
+  if (usesBW(e)){ const b = bwToday();
+    h += `<div class="xs mu2" style="padding:0 4px;line-height:1.45">${!b ? "BW is your bodyweight. Log it in Progress, Body to fill it in." : b.today ? "BW filled from today's weigh-in: " + fw(b.w) + "." : "BW uses your last weigh-in (" + ago(b.d).toLowerCase() + "): " + fw(b.w) + "."}${!b || !b.today ? ` <button class="lk" style="font-size:12px;min-height:28px" data-a="prog" data-v="body">Log today's weight</button>` : ""}</div>`; }
   if (!S._swipeTip) h += `<div class="xs mu2" style="padding:0 4px">Tip: swipe a set left to delete it. Tap the set number to mark a warm-up.</div>`;
   return h + `</div></div>`;
 }
@@ -208,7 +211,8 @@ function sesCard(s, compact){
   let h = `<div class="${compact ? "" : "card tight"}" style="${compact ? "background:var(--c2);border-radius:16px;padding:12px 14px" : ""}"><button class="coll" data-a="hx" data-v="${s.id}" aria-expanded="${open}"><span class="col" style="gap:2px;min-width:0"><span class="h3">${esc(s.n)}</span><span class="sm mu">${dstr(s.st)}, ${Math.max(1, Math.round(s.dur / 6e4))} min, ${setsOf(s)} sets${v ? ", " + Math.round(toU(v)).toLocaleString() + " " + S.u : ""}</span></span>${I.chevD()}</button>`;
   if (open){
     h += `<div class="col g10" style="margin-top:12px">` + s.ex.map(r => { const e = X(r.e), mode = e ? e.mode : "wr"; return `<div class="col g6"><span class="b6">${esc(exName(r.e, r.n))}</span><div class="row wrap g6" style="gap:6px">${r.sets.map(x => `<span class="hset ${x.wu ? "wu" : x.pr ? "p" : ""}">${x.wu ? "W " : ""}${fset(mode, x)}</span>`).join("")}</div></div>`; }).join("");
-    h += `<button class="lk" style="color:var(--bad)" data-a="delses" data-v="${s.id}">${ui.cd === s.id ? "Tap again to delete this workout" : "Delete workout"}</button></div>`;
+    const day = s.day && S.days.find(d => d.id === s.day);
+    h += `<div class="row wrap" style="gap:8px">${day ? `<button class="btn g sm" data-a="sesday" data-v="${s.id}">${I.edit({s:16})}Update ${esc(day.n)}</button>` : ""}<button class="btn sm danger" data-a="delses" data-v="${s.id}">${ui.cd === s.id ? "Tap again to delete" : "Delete workout"}</button></div>${day ? `<span class="xs mu2">Update sets ${esc(day.n)} to this workout's exercises and order.</span>` : ""}</div>`;
   }
   return h + `</div>`;
 }

@@ -86,12 +86,25 @@ const isW = mode => mode === "wr" || mode === "wbw" || mode === "ast";
 function rowsFor(id){
   const e = X(id), L = lastRec(id);
   if (!e) return [];
-  if (!L) return Array.from({length:S.set.defSets}, () => ({}));
+  const b = usesBW(e) ? bwToday() : null;
+  if (!L) return Array.from({length:S.set.defSets}, () => (b ? {w:b.w} : {}));
   return L.r.sets.map(s => {
     const o = {w:s.w, r:s.r, t:s.t, d:s.d};
     if (s.wu) o.wu = 1;
+    if (b) o.w = b.w;
     return o;
   });
+}
+/* bodyweight exercises use the weight logged that day */
+const usesBW = e => !!e && e.eq === "bodyweight" && (e.mode === "r" || e.mode === "wr");
+function bwToday(){
+  const t = dayStart(Date.now()), L = S.bw.slice().sort((a, b) => b.d - a.d);
+  const today = L.find(x => dayStart(x.d) === t);
+  return today ? {w:today.w, today:true} : L[0] ? {w:L[0].w, today:false, d:L[0].d} : null;
+}
+function fillBW(){
+  const b = bwToday(); if (!S.act || !b) return;
+  for (const r of S.act.ex){ if (!usesBW(X(r.e))) continue; for (const s of r.sets) if (!s.done) s.w = b.w; }
 }
 function countsInStats(s){ return S.set.wuStats || !s.wu; }
 
@@ -148,7 +161,7 @@ function metricSeries(id){
 }
 
 /* ---------- stats ---------- */
-function volOf(x){ let v = 0; for (const r of x.ex){ const e = X(r.e); if (!e || e.mode !== "wr") continue; for (const s of r.sets) if (countsInStats(s)) v += s.w * s.r; } return v; }
+function volOf(x){ let v = 0; for (const r of x.ex){ const e = X(r.e); if (!e || !(e.mode === "wr" || usesBW(e))) continue; for (const s of r.sets) if (countsInStats(s) && s.w > 0 && s.r > 0) v += s.w * s.r; } return v; }
 function setsOf(x){ let n = 0; for (const r of x.ex) for (const s of r.sets) if (!s.wu) n++; return n; }
 function muscleSets(from, to){
   const m = {};
