@@ -122,6 +122,25 @@ function bests(id, exclude){
   if (S.act) for (const r of S.act.ex) if (r.e === id) for (const s of r.sets) if (s.done && s !== exclude) f(s);
   return b;
 }
+function newBest(){ return {has:false, w:-Infinity, o:-Infinity, r:-Infinity, d:-Infinity, aw:Infinity}; }
+function addBest(e, b, s){ b.has = true;
+  if (e.mode === "wr"){ b.w = Math.max(b.w, s.w); b.o = Math.max(b.o, orm(s.w, s.r)); }
+  else if (e.mode === "r") b.r = Math.max(b.r, s.r);
+  else if (e.mode === "wbw"){ b.w = Math.max(b.w, s.w); b.r = Math.max(b.r, s.r); }
+  else if (e.mode === "ast") b.aw = Math.min(b.aw, s.w);
+  else if (e.mode === "td") b.d = Math.max(b.d, s.d); }
+function checkBest(e, b, s){ const E = 1e-6; if (!b.has) return null;
+  if (e.mode === "wr"){ if (s.w > b.w + E) return "Heaviest weight: " + fw(s.w); if (orm(s.w, s.r) > b.o + E) return "Best est. 1RM: " + fw(Math.round(orm(s.w, s.r) * 10) / 10); }
+  if (e.mode === "r" && s.r > b.r) return "Most reps: " + s.r;
+  if (e.mode === "wbw" && s.w > b.w + E) return "Heaviest added: +" + fw(s.w);
+  if (e.mode === "ast" && s.w < b.aw - E) return "Least assistance: " + fw(s.w);
+  if (e.mode === "td" && s.d > b.d + E) return "Longest distance: " + nfmt(s.d) + " km";
+  return null; }
+function recomputePRs(){
+  const B = {};
+  for (const x of S.ses.slice().sort((a, b) => a.st - b.st)) for (const r of x.ex){ const e = X(r.e); if (!e) continue; const b = B[r.e] || (B[r.e] = newBest());
+    for (const s of r.sets){ delete s.pr; if (s.wu) continue; const p = checkBest(e, b, s); if (p) s.pr = p; addBest(e, b, s); } }
+}
 function prFor(id, s){
   if (s.wu) return null;
   const b = bests(id, s); if (!b.has) return null;

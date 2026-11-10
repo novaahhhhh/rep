@@ -59,7 +59,7 @@ function vWork(){
   const a = S.act;
   if (!a){
     let h = `<h1 class="h1">Workout</h1><p class="mu" style="margin:8px 0 18px">No workout running. Pick a day to start.</p><div class="col g8">`;
-    h += S.days.map(d => `<div class="cardlink"><span class="f1 col"><span class="h3">${esc(d.n)}</span><span class="sm mu">${d.items.length} exercises</span></span><button class="play" data-a="startday" data-v="${d.id}" aria-label="Start ${esc(d.n)}">${I.play()}</button></div>`).join("");
+    h += S.days.map(d => `<div class="cardlink"><span class="f1 col"><span class="h3">${esc(d.n)}</span><span class="sm mu">${d.items.length} exercise${d.items.length === 1 ? "" : "s"}</span></span><button class="play" data-a="startday" data-v="${d.id}" aria-label="Start ${esc(d.n)}">${I.play()}</button></div>`).join("");
     return h + `<button class="btn g w" data-a="startempty" style="margin-top:6px">Start an empty workout</button></div>` + finishedList();
   }
   const doneEx = a.ex.filter(r => r.sets.length && r.sets.every(s => s.done)).length;
@@ -212,7 +212,7 @@ function sesCard(s, compact){
   if (open){
     h += `<div class="col g10" style="margin-top:12px">` + s.ex.map(r => { const e = X(r.e), mode = e ? e.mode : "wr"; return `<div class="col g6"><span class="b6">${esc(exName(r.e, r.n))}</span><div class="row wrap g6" style="gap:6px">${r.sets.map(x => `<span class="hset ${x.wu ? "wu" : x.pr ? "p" : ""}">${x.wu ? "W " : ""}${fset(mode, x)}</span>`).join("")}</div></div>`; }).join("");
     const day = s.day && S.days.find(d => d.id === s.day);
-    h += `<div class="row wrap" style="gap:8px">${day ? `<button class="btn g sm" data-a="sesday" data-v="${s.id}">${I.edit({s:16})}Update ${esc(day.n)}</button>` : ""}<button class="btn sm danger" data-a="delses" data-v="${s.id}">${ui.cd === s.id ? "Tap again to delete" : "Delete workout"}</button></div>${day ? `<span class="xs mu2">Update sets ${esc(day.n)} to this workout's exercises and order.</span>` : ""}</div>`;
+    h += `<div class="row wrap" style="gap:8px"><button class="btn g sm" data-a="sesedit" data-v="${s.id}">${I.edit({s:16})}Edit sets</button>${day ? `<button class="btn g sm" data-a="sesday" data-v="${s.id}">${I.edit({s:16})}Update ${esc(day.n)}</button>` : ""}<button class="btn sm danger" data-a="delses" data-v="${s.id}">${ui.cd === s.id ? "Tap again to delete" : "Delete workout"}</button></div>${day ? `<span class="xs mu2">Update makes ${esc(day.n)} match this workout's exercises and order.</span>` : ""}</div>`;
   }
   return h + `</div>`;
 }
@@ -281,6 +281,19 @@ PAGES.exdetail = p => {
   ${rec.length ? `<div style="display:grid;grid-template-columns:repeat(${rec.length},minmax(0,1fr));gap:8px">${rec.map(r => `<div class="rec" style="background:var(--c1)"><div class="xs mu">${r[0]}</div><b>${r[1]}</b></div>`).join("")}</div>` : ""}
   ${ser.pts.length > 1 ? `<section class="card col g8"><h2 class="h2" style="font-size:24px">${ser.title}</h2>${lineChart(ser.pts, {lowerBetter:ser.lowerBetter, label:ser.title})}</section>` : ""}
   <section class="col g8"><h2 class="h2" style="font-size:24px">History</h2>${hist.length ? hist.map(({s, r}) => `<div class="card tight col g6" style="border-radius:16px"><div class="row sb sm mu"><span>${dstr(s.st)}</span><span>${esc(s.n)}</span></div><div class="row wrap" style="gap:6px">${r.sets.map(x => `<span class="hset ${x.wu ? "wu" : x.pr ? "p" : ""}">${x.wu ? "W " : ""}${fset(e.mode, x)}</span>`).join("")}</div></div>`).join("") : `<span class="sm mu">Nothing logged yet.</span>`}</section></div>`;
+};
+PAGES.sesedit = p => {
+  const d = p.d;
+  let h = hdr("Edit workout") + `<p class="mu sm" style="margin:2px 0 14px">${esc(d.n)}, ${dstr(d.st)}. Tap a set number to switch warm-up on or off.</p><div class="col g12">`;
+  d.ex.forEach((r, i) => {
+    const e = X(r.e) || {mode:"wr", eq:""}, cols = colsFor(e), grid = `38px ${cols.map(() => "minmax(0,1fr)").join(" ")} 44px`;
+    let n = 0;
+    h += `<div class="card col g8"><span class="h3">${esc(exName(r.e, r.n))}</span><div class="tbl" style="grid-template-columns:${grid}"><span class="th c">Set</span>${cols.map(c => `<span class="th c">${c[1]}</span>`).join("")}<span></span></div>`;
+    r.sets.forEach((s, j) => { const lab = s.wu ? "W" : ++n;
+      h += `<div class="srow" style="grid-template-columns:${grid}"><button class="sbadge ${s.wu ? "wu" : ""}" data-a="se_wu" data-i="${i}" data-j="${j}" aria-label="${s.wu ? "Warm-up, tap to make it a working set" : "Set " + lab + ", tap to mark as warm-up"}">${lab}</button>${cols.map(c => { const v = s[c[0]]; return `<input class="cell secell" data-i="${i}" data-j="${j}" data-k="${c[0]}" inputmode="decimal" value="${v == null ? "" : c[0] === "w" ? wv(v) : nfmt(v)}" placeholder="–" aria-label="${c[1]}, set ${lab}">`; }).join("")}<button class="ib" data-a="se_del" data-i="${i}" data-j="${j}" aria-label="Delete set ${lab}">${I.close({s:18})}</button></div>`; });
+    h += `<button class="btn dash sm w" data-a="se_add" data-i="${i}">${I.plus()}Add set</button></div>`;
+  });
+  return h + `</div>` + fbar(`<button class="btn f1" data-a="se_save">Save changes</button>`);
 };
 PAGES.day = p => {
   const d = p.d;

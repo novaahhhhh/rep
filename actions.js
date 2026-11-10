@@ -250,6 +250,18 @@ A.delses = el => twoTap(el.dataset.v, () => { S.ses = S.ses.filter(s => s.id !==
 A.bwstep = el => { const i = $("#bwi"), st = S.u === "kg" ? .1 : .2; i.value = nfmt(Math.round(((parseNum(i.value) || 0) + (+el.dataset.v) * st) * 10) / 10); };
 A.bwlog = () => { const v = parseNum($("#bwi").value); if (!(v > 0)){ toast("Enter your weight"); return; } const t = dayStart(Date.now()); S.bw = S.bw.filter(x => dayStart(x.d) !== t); S.bw.push({d:Date.now(), w:fromU(v)}); fillBW(); save(true); vib(15); toast("Logged " + nfmt(v) + " " + S.u); render(); };
 A.bwdel = el => { const d = +el.dataset.v, old = S.bw.find(x => x.d === d); S.bw = S.bw.filter(x => x.d !== d); save(); render(); toast("Entry deleted", () => { S.bw.push(old); save(); render(); }); };
+A.sesedit = el => { const s = S.ses.find(x => x.id === el.dataset.v); if (s) pushPage({p:"sesedit", id:s.id, d:clone(s), bar:1}); };
+A.se_wu = el => { const s = curPage().d.ex[+el.dataset.i].sets[+el.dataset.j]; if (s.wu) delete s.wu; else s.wu = 1; render(); };
+A.se_del = el => { curPage().d.ex[+el.dataset.i].sets.splice(+el.dataset.j, 1); render(); };
+A.se_add = el => { const r = curPage().d.ex[+el.dataset.i], l = r.sets[r.sets.length - 1] || {}, n = {}; for (const k of ["w","r","t","d"]) if (l[k] != null) n[k] = l[k]; r.sets.push(n); render(); };
+A.se_save = () => {
+  const p = curPage(), d = p.d;
+  d.ex.forEach(r => { const e = X(r.e) || {mode:"wr"}; r.sets = r.sets.filter(s => valid(e, s)); });
+  d.ex = d.ex.filter(r => r.sets.length);
+  if (!d.ex.length){ toast("Keep at least one set, or delete the workout instead"); return; }
+  const i = S.ses.findIndex(x => x.id === p.id); if (i < 0) return goBack();
+  S.ses[i] = d; recomputePRs(); save(true); toast("Workout updated"); goBack();
+};
 A.sesday = el => {
   const s = S.ses.find(x => x.id === el.dataset.v), d = s && S.days.find(x => x.id === s.day); if (!d) return;
   const old = d.items; d.items = s.ex.filter(r => X(r.e)).map(r => ({e:r.e, g:r.g || null}));
@@ -286,6 +298,7 @@ document.addEventListener("input", ev => {
     if (s.done && (k === "w" || k === "r")){ const pr = prFor(S.act.ex[+t.dataset.i].e, s); if (pr) s.pr = pr; else delete s.pr; }
     save(); return;
   }
+  if (t.classList.contains("secell")){ const p = curPage(), s = p.d.ex[+t.dataset.i].sets[+t.dataset.j], k = t.dataset.k, v = parseNum(t.value); s[k] = v == null ? null : (k === "w" ? fromU(v) : v); return; }
   if (t.dataset.f){ const p = curPage(); if (!p || !p.d) return; p.d[t.dataset.f] = t.value;
     if (p.p === "exedit" && t.dataset.f === "n" && !p.touched){ const g = guessMuscles(t.value);
       if (g && (g.m !== p.d.m || g.m2.join() !== p.d.m2.join())){ p.d.m = g.m; p.d.m2 = g.m2; p.auto = 1; const pos = t.selectionStart; render(); const f = $('[data-f="n"]'); if (f){ f.focus(); try { f.setSelectionRange(pos, pos); } catch (e) {} } } }
